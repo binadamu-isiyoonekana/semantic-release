@@ -117,7 +117,10 @@ async function run(context, plugins) {
     if (context.branch.mergeRange && !semver.satisfies(nextRelease.version, context.branch.mergeRange)) {
       errors.push(getError("EINVALIDMAINTENANCEMERGE", { ...context, nextRelease }));
     } else {
+      // Load commits between the last release tag and the next release (usually the HEAD reference)
       const commits = await getCommits({ ...context, lastRelease, nextRelease });
+
+      // Generate change logs notes
       nextRelease.notes = await plugins.generateNotes({ ...context, commits, lastRelease, nextRelease });
 
       if (options.dryRun) {
@@ -166,6 +169,7 @@ async function run(context, plugins) {
     logger.log(`No git tag version found on branch ${context.branch.name}`);
   }
 
+  // Load commits
   context.commits = await getCommits(context);
 
   const nextRelease = {
@@ -268,10 +272,12 @@ export default async (cliOptions = {}, { cwd = process.cwd(), env = process.env,
   context.logger = getLogger(context);
   context.logger.log(`Running ${pkg.name} version ${pkg.version}`);
   try {
+    // Load configuration and configured plugins
     const { plugins, options } = await getConfig(context, cliOptions);
     options.originalRepositoryURL = options.repositoryUrl;
     context.options = options;
     try {
+      // Enter main running loop
       const result = await run(context, plugins);
       unhook();
       return result;
